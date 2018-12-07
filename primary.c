@@ -2,7 +2,7 @@
 /*
  * File:        TFT, keypad, DAC, LED, PORT EXPANDER test
  *              With serial interface to PuTTY console
- * Author:      Bruce Land
+ * Authors:     Nikhil Dhawan, Ian Kranz, Sofya Calvin 
  * For use with Sean Carroll's Big Board
  * http://people.ece.cornell.edu/land/courses/ece4760/PIC32/target_board.html
  * Target PIC:  PIC32MX250F128B
