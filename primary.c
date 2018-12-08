@@ -14,8 +14,6 @@
 #include "config_1_2_3.h"
 // threading library
 #include "pt_cornell_1_2_3.h"
-// yup, the expander
-#include "port_expander_brl4.h"
 
 ////////////////////////////////////
 // graphics libraries
@@ -28,43 +26,11 @@
 #include <math.h>
 ////////////////////////////////////
 
-// lock out timer 2 interrupt during spi comm to port expander
-// This is necessary if you use the SPI2 channel in an ISR.
-// The ISR below runs the DAC using SPI2
-#define start_spi2_critical_section INTEnable(INT_T2, 0)
-#define end_spi2_critical_section INTEnable(INT_T2, 1)
-
 ////////////////////////////////////
-
-/* Demo code for interfacing TFT (ILI9340 controller) to PIC32
- * The library has been modified from a similar Adafruit library
- */
-// Adafruit data:
-/***************************************************
-  This is an example sketch for the Adafruit 2.2" SPI display.
-  This library works with the Adafruit 2.2" TFT Breakout w/SD card
-  ----> http://www.adafruit.com/products/1480
-
-  Check out the links above for our tutorials and wiring diagrams
-  These displays use SPI to communicate, 4 or 5 pins are required to
-  interface (RST is optional)
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  MIT license, all text above must be included in any redistribution
- ****************************************************/
-
 // string buffer
 char buffer[60];
 
 ////////////////////////////////////
-// DAC ISR
-// A-channel, 1x, active
-#define DAC_config_chan_A 0b0011000000000000
-// B-channel, 1x, active
-#define DAC_config_chan_B 0b1011000000000000
 // DDS constant
 #define two32 4294967296.0 // 2^32 
 #define Fs 100000
@@ -79,7 +45,7 @@ volatile unsigned int phase_accum_main, phase_incr_main=400.0*two32/Fs ;//
 #define sine_table_size 256
 volatile int sin_table[sine_table_size];
 
-static struct pt pt_timer, pt_color, pt_anim, pt_key, pt_serial, pt_exec ;
+static struct pt pt_serial, pt_exec ;
 // The following threads are necessary for UART control
 static struct pt pt_input, pt_output, pt_DMA_output ;
 
@@ -87,15 +53,10 @@ static struct pt pt_input, pt_output, pt_DMA_output ;
 int sys_time_seconds ;
 volatile int react_state = 2;
 int receive_state = 0;
-char handle[15];
-char tweet_blocks[5][64];
-char tweet_block1[64];
-char tweet_block2[64];
-char tweet_block3[64];
-char tweet_block4[64];
-char tweet_block5[64];
-char tweet_full[320];
-char emotion[1];
+char handle[15]; //stores incoming tweet twitter handle
+char tweet_blocks[5][64]; //5x64 array of tweet chunks
+char tweet_full[320]; //stores entire tweet
+char emotion[1]; //tweet emotion
 
 
 
@@ -120,7 +81,7 @@ void print_tweet() {
             tweet_full[64*i+j] = tweet_blocks[i][j];
         }
     }
-    
+    //print tweet
     for (i = 0; i < 180; i++) {
         line[i%24] = tweet_full[i];
         if (30+i/24*15 > 180) {
@@ -133,7 +94,7 @@ void print_tweet() {
         }
     }
     
-    //clear tweet blocks
+    //clear tweet chunks and tweet full
     for (i = 0; i < 5; i++) {
         memset(tweet_blocks[i], 0, 64);
     }
@@ -165,16 +126,10 @@ static PT_THREAD(protothread_execute(struct pt *pt))
         switch (react_state) {
             case 0: //start react
                 WriteTimer23(0x00000000); //start timer
-                //tft_fillRoundRect(0,0, 320, 240, 1, ILI9340_BLACK);// x,y,w,h,radius,color
                 print_tweet();
-                //tft_setCursor(10, 50);
-                //tft_writeString(tweet);
                 react_state = 1; //transition to IP
-                //tft_setCursor(10, 150);
-                //tft_writeString("H");
                 break;
             case 1: //react IP
-                //actuate servos
                 break;
             case 2: //stop react
                 tft_fillRoundRect(0,0, 320, 240, 1, ILI9340_BLACK);// x,y,w,h,radius,color
@@ -197,15 +152,10 @@ static PT_THREAD (protothread_serial(struct pt *pt))
     PT_BEGIN(pt);
       // string buffer
       static char buffer[128];
-      tft_setCursor(0, 0);
       tft_setTextColor(ILI9340_WHITE);  tft_setTextSize(2);
-      tft_writeString("Primary Pic");
       clr_right;
       memset(PT_send_buffer, 0, max_chars);
       while(1) {
-          
-            
-            
             int i = 0;
           
             PT_terminate_char = '\r' ;
@@ -277,17 +227,6 @@ static PT_THREAD (protothread_serial(struct pt *pt))
                         break;
                 }
              }
-            
-            else {
-                emotion[0] = 0;
-                tweet_block1[0] = 0;
-                tweet_block2[0] = 0;
-                tweet_block3[0] = 0;
-                tweet_block4[0] = 0;
-                tweet_block5[0] = 0;
-                handle[0] = 0;
-            }
-                
             // never exit while
       } // END WHILE(1)
   PT_END(pt);
@@ -306,7 +245,6 @@ void main(void) {
     // 400 is 100 ksamples/sec
     // 2000 is 20 ksamp/sec
     OpenTimer23(T23_ON | T23_SOURCE_INT | T23_PS_1_256, 0x002FAF08);
-  //OpenTimer23(T23_ON | T23_SOURCE_INT | T23_PS_1_256, 0xFFFFFFFF);
     // set up the timer interrupt with a priority of 2
     ConfigIntTimer23(T23_INT_ON | T23_INT_PRIOR_2);
     mT23ClearIntFlag(); // and clear the interrupt flag
