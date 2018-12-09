@@ -16,15 +16,21 @@
 	<p>
 		Our project aims to explore potential solutions to the lack of physical feedback in the world of social media. We built an emotionally expressive robot which physically reacts to Tweets in a live setting. Users can tweet to the robot’s Twitter account and receive near instant feedback as the robot, plays a sound, moves on its surface, displays the tweet text, shows a facial expression, lights up with different colors and intensities to convey its feelings about the tweet. 
 	</p>
-	<h2>High Level Design</h2>
 	<p>
 		A server application running on a laptop computer monitors the robot’s Twitter account in real time. When a tweet is received, the server processes the content and fits the text to an emotion. The twitter user ID, tweet content, and emotion are all sent to the robot via a wireless bluetooth serial connection whereupon the robot displays the information and maps the emotion to a predetermined set of outputs for each of the possible emotions.
 	</p>
 
-	<img src='twdiag.PNG'/>
+	<h2>High Level Design</h2>
+
+	<img src='twdiag.png'/>
 
 	<h2>Design Details</h3>
 	<h3>Electronics</h3>
+
+	<h4>HC-05 Bluetooth Module</h4>
+	<img src='hc05.jpg'/>
+	<p>The HC-05 module comes pre-configured to send and receive serial data over Bluetooth and UART. Our design only requires the module to receive character data over Bluetooth from a Windows computer and send the characters over a wired UART connection to the PIC32. The module ships with these capabilities, so no configuration was required. We simply attached power, ground, and TX to the PIC and found and paired with the Bluetooth device on the computer. The baud rate is set by standard to 9600, so this baud rate was used to receive on the PIC32. It should be noted that this module is rather old and was able to connect to our somewhat old Windows computer, but it was unable to connect to any recent Apple products.</p>
+
 	<h3>Mechanical Design</h3>
 	<h3>Software</h3>
 	<h3>Faces</h3>
