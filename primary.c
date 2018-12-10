@@ -35,16 +35,6 @@ char buffer[60];
 #define two32 4294967296.0 // 2^32 
 #define Fs 100000
 
-//== Timer 2 interrupt handler ===========================================
-volatile unsigned int DAC_data ;// output value
-volatile SpiChannel spiChn = SPI_CHANNEL2 ;	// the SPI channel to use
-volatile int spiClkDiv = 4 ; // 10 MHz max speed for port expander!!
-// the DDS units:
-volatile unsigned int phase_accum_main, phase_incr_main=400.0*two32/Fs ;//
-// DDS sine table
-#define sine_table_size 256
-volatile int sin_table[sine_table_size];
-
 static struct pt pt_serial, pt_exec ;
 // The following threads are necessary for UART control
 static struct pt pt_input, pt_output, pt_DMA_output ;
@@ -59,7 +49,7 @@ char tweet_full[320]; //stores entire tweet
 char emotion[1]; //tweet emotion
 
 
-
+//== Timer 23 interrupt handler ===========================================
 void __ISR(_TIMER_23_VECTOR, ipl2) Timer23Handler(void)
 {
     mT23ClearIntFlag();
@@ -240,30 +230,14 @@ void main(void) {
 
   // set up DAC on big board
   // timer interrupt //////////////////////////
-    // Set up timer2 on,  interrupts, internal clock, prescalar 1, toggle rate
-    // at 30 MHz PB clock 60 counts is two microsec
-    // 400 is 100 ksamples/sec
-    // 2000 is 20 ksamp/sec
-    OpenTimer23(T23_ON | T23_SOURCE_INT | T23_PS_1_256, 0x002FAF08);
-    // set up the timer interrupt with a priority of 2
-    ConfigIntTimer23(T23_INT_ON | T23_INT_PRIOR_2);
-    mT23ClearIntFlag(); // and clear the interrupt flag
-
-    // control CS for DAC
-    mPORTBSetPinsDigitalOut(BIT_4);
-    mPORTBSetBits(BIT_4);
-    // SCK2 is pin 26 
-    // SDO2 (MOSI) is in PPS output group 2, could be connected to RB5 which is pin 14
-    PPSOutput(2, RPB5, SDO2);
-    // 16 bit transfer CKP=1 CKE=1
-    // possibles SPI_OPEN_CKP_HIGH;   SPI_OPEN_SMP_END;  SPI_OPEN_CKE_REV
-    // For any given peripherial, you will need to match these
-    // NOTE!! IF you are using the port expander THEN
-    // -- clk divider must be set to 4 for 10 MHz
-    SpiChnOpen(SPI_CHANNEL2, SPI_OPEN_ON | SPI_OPEN_MODE16 | SPI_OPEN_MSTEN | SPI_OPEN_CKE_REV , 4);
-  // end DAC setup
-   
-   
+  // Set up timer2 on,  interrupts, internal clock, prescalar 1, toggle rate
+  // at 30 MHz PB clock 60 counts is two microsec
+  // 400 is 100 ksamples/sec
+  // 2000 is 20 ksamp/sec
+  OpenTimer23(T23_ON | T23_SOURCE_INT | T23_PS_1_256, 0x002FAF08);
+  // set up the timer interrupt with a priority of 2
+  ConfigIntTimer23(T23_INT_ON | T23_INT_PRIOR_2);
+  mT23ClearIntFlag(); // and clear the interrupt flag
   // === config threads ==========
   // turns OFF UART support and debugger pin, unless defines are set
   PT_setup();
