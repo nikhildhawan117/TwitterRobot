@@ -17,13 +17,13 @@ BOT_HANDLE = "@BotCornell"
 EMPTY_CHUNK = "--"
 
 ## Twitter API Keys
-consumer_key = 'a4FKb31XiWs3PwMtnGYqIclAm'
-consumer_secret = 'QCq66ButRx4HL4zJdIzKrPIlxFhbmTMbmuhXz6UmOnXs1TFSBz'
-access_token = '1112912995-mBI6PhE1ngZAa5w18CNRgp6uuqy93zWxDkOJnNn'
-access_token_secret = '7Se3UYutHn21Ke1h7ThznOvshTFlF07krqEzLBoFEL66o'
+consumer_key = 'your consumer key'
+consumer_secret = 'your consumer secret'
+access_token = 'your access token'
+access_token_secret = 'your access token secret'
 
 ## Parallel
-paralleldots_key = 'ESsUKdETmdlYWnVSyJqFGMsO0EqjDTE9QvDWqwIyTT8'
+paralleldots_key = 'your paralleldots key'
 
 
 class StreamListener(StreamListener):

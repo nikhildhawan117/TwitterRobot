@@ -15,7 +15,7 @@
 		Social Media outlets like Twitter and Facebook have become dominating players in the field of human interaction. Indeed many interactions have become mediated by digital technology. We believe the loss of the physical component of interaction has had negative effects on human relationships overall. Current research studies agree that people become more isolated through use of social media.
 	</p>
 	<p>
-		Our project aims to explore potential solutions to the lack of physical feedback in the world of social media. We built an emotionally expressive robot which physically reacts to Tweets in a live setting. Users can tweet to the robot’s Twitter account and receive near instant feedback as the robot, plays a sound, moves on its surface, displays the tweet text, shows a facial expression, lights up with different colors and intensities to convey its feelings about the tweet. 
+		Our project aims to explore potential solutions to the lack of physical feedback in the world of social media. We built an emotionally expressive robot which physically reacts to Tweets in a live setting. Users can tweet to the robot's Twitter account and receive near instant feedback as the robot, plays a sound, moves on its surface, displays the tweet text, shows a facial expression, lights up with different colors and intensities to convey its feelings about the tweet. 
 	</p>
 	<p>
 		A server application running on a laptop computer monitors the robot's Twitter account in real time. When a tweet is received, the server processes the content and fits the text to an emotion. The twitter user ID, tweet content, and emotion are all sent to the robot via a wireless bluetooth serial connection whereupon the robot displays the information and maps the emotion to a predetermined set of outputs for each of the possible emotions.
@@ -25,31 +25,1095 @@
 
 	<img src='twdiag.png'/>
 
+	<p>When considering options for our final project, we wanted to design and building something that could have social impact. Considering concern over social media use and its impact on the behavior of young people has grown in recent years, we decided build a robot to facilitate social media interaction in the real world. Consequently, we designed a twitter robot that analyzed the emotions of and reacted to tweets from users in real-time. </p>
+
+	<p>At a high-level, our system consisted of 3 main parts: a python script running on a PC, a primary pic32, and a secondary pic32. On execution, the python script connected to a bluetooth module in the robot and then began monitoring twitter for any mentions of our robot's twitter handle. Once a tweet came in, the script analyzed its emotion and sent the handle, tweet, and emotion over bluetooth to the primary pic32. The primary pic32 parsed the information it received, displayed the tweet on a tft display, and sent the emotion over UART to a secondary pic32. This pic32, upon receiving an emotion, displayed the appropriate face on a second tft display, played a sound indicating a tweet was received, and changed the color of lights mounted the robot, and actuated the robot's servos until it receives a yield command from the primary pic32. </p>
+
+	<p>Initially, we planned on using WiFi to broker communication between the PC and the primary pic32. However, according to work done in previous projects, using WiFi lead to problems with TCP connections, parsing, and sending successive commands too quickly. Consequently, we decided to use bluetooth instead which while reducing the range capabilities of the robot, afforded grater flexibility with parsing and sending commands. We also had to compromise on some of the robot's idle behavior such as blinking due to the CPU requirement of the method getMachineBuffer which returned data from the rx line of the UART. To avoid missing data, the thread containing getMachineBuffer needed to be running whenever there was a possibility of a receive occurring. Consequently, scheduling a thread that handled blinking caused the thread running getMachineBuffer to non-deterministically miss transmissions. Thus we carefully implemented our thread-scheduling algorithm to wait for a transmission from the UART before signaling other threads to run.</p>
+
+	<p>We also had to make a tradeoff between using multi-color LED lights or many different single-color LED lights. The main tradeoff here was the high cost but better aesthetics of using multi-colored LEDs. Furthermore, single-colored LED light were less technically challenging as they only required a PWM signal to control them as opposed to multi-colored LEDs which would require an additional communication channel for its chip. </p>
+
 	<h2>Design Details</h3>
 	<h3>Hardware Design</h3>
 
 	<h4>Electrical</h4>
 
+	<p>At the center of the hardware design was two PIC32 microcontrollers, each connected to a small board. We decided to use two PICs because we needed the ample amount of I/O ports for all of our connected sensors. Additionally, we used the small boards so that they could fit nicely into the portable size of our device.</p>
+	<p>The function of the first PIC was to handle the tweet information. Connected to it was both a TFT display and a bluetooth module. From the computer, the script outlined above sent the tweet and emotion data using bluetooth to the bluetooth module. The PIC then read this data and performed two tasks. First, it took the tweet and the sender of the tweet and displayed it on the TFT display. Second, it took the analyzed emotion and transmitted it via UART to the second PIC.</p>
+	<p>The function of the second board was to perform all of the reactions to the tweet based on the emotion. One of the first things it did was play the tweeting sound using DMA to reflect that a tweet had been received and that it was going to react. We used a DAC for these connections and chose to use Piezo-electric buzzers to create a louder sound than electromagnetic speakers could produce. Next, the PIC changed the face on the TFT display to reflect the emotion. It then varied the duty cycle of the PWMs being sent to the LED circuit to turn the three different color lights (yellow, red, green) on, off, or fading in and out. Different patterns of lights were used depending on the emotion. Finally, the PIC sent two more PWM signals to the two servos allowing them to spin the robot in a circular fashion.</p>
+	<p>To power the system, we used a 9V battery. This was directly connected to each of the small boards as well the LED circuit. In order to power the servos, we built a simple voltage regulator to drop the 9V down to 5V. This was necessary as the max voltage the servos could run off of was 5V. For the rest of the devices (the bluetooth module, the DAC, and the two TFTs), we used the 3.3V pins on the small boards as a power source. 
+	For further detail on the exact connections between hardware components, refer to Appendix C for the complete schematic. </p>
 
 	<h4>Mechanical</h4>
+
+	<img src='front.jpg'/>
+	<img src='back.jpg'/>
+	<img src='inside.jpg'/>
+
 	<p>The robot itself is built mostly from plywood. The design is a two-box design in the spirit of classic robot design where the body is simply a box and the head a smaller box sitting on top of the body box. The boxes were constructed by laser-cutting plywood with teeth-like notches such that the panels could fit into each other well to form a box. The body box is 6''x5.5''x4'', and the head box is 4''x2.5''x2''.</p>
 
-	<p>The head has a rectangular hole cut out in the front into which we placed the Adafruit TFT display to represent the robot’s face. Four screw holes were made to hold the display in place. Holes were drilled into the sides of the head, one on each side, to hold the Piezo Speakers. The placement of the speakers is intended to give the appearance of ears on the robot. Another rectangular hole was cut on the bottom panel of the head so that wires can be fed from the body into the head. Inside the head also was placed the HC-05 Bluetooth module. The head panels were hot glued together to form the final head.</p>
+	<p>The head has a rectangular hole cut out in the front into which we placed the Adafruit TFT display to represent the robot's face. Four screw holes were made to hold the display in place. Holes were drilled into the sides of the head, one on each side, to hold the Piezo Speakers. The placement of the speakers is intended to give the appearance of ears on the robot. Another rectangular hole was cut on the bottom panel of the head so that wires can be fed from the body into the head. Inside the head also was placed the HC-05 Bluetooth module. The head panels were hot glued together to form the final head.</p>
 
-	<p>The body was constructed much the same as the head. A rectangular hole was made for the other Adafruit TFT display in the approximate center of the front panel of the body. The display was mounted here with screws and its serves as a place to show the tweet content received by the robot. Above the display and also on the front panel is a rectangular hole through which the robot’s expressive lights are visible. The rectangular hole is covered from the inside by a thin layer of frosted-texture plastic cut from a plastic shoe-box. The plastic was added to give the LEDs a more dispersed lighting effect as well as to obscure the view of the robot’s inner circuitry. Behind the plastic was mounted the LED circuit board. The board is actually two small solder boards glued together (used because one large solder board did not fit as intended) and contains a total of 12 LEDs (4 Green, 4 Yellow, and 4 Red). The LEDs are oriented on the board such that the four LEDs of each color are approximately equidistant and spanning the length of the rectangular viewing hole. The board is secured by screws to the front wooden panel and offset from the panel using spacers. On either side of the body box are holes cut to fit the continuous rotation servos. The servos are secured to the panels with screws. The servos are intentionally placed toward the front of the robot so that with wheels attached to the servos the robot will rest on a table with points of contact being two wheels in the front and a small piece of wood on the back. The piece of wood is secured to the bottom panel near the rear of the body using screws. On the back body panel, a rectangular door was cut to allow for interior access to the body. The door was placed on a hinge and the hinge connected to the rest of the body with hot glue. A small plastic knob was glued to the door as a handle with which to open and close the access door. A hole was cut into the top piece of the body to allow wires to run from the body to the head. All of the body panels were glued together to form the final body box. The head was simply glued onto the top of the body box, completing the body design.</p>
+	<p>The body was constructed much the same as the head. A rectangular hole was made for the other Adafruit TFT display in the approximate center of the front panel of the body. The display was mounted here with screws and its serves as a place to show the tweet content received by the robot. Above the display and also on the front panel is a rectangular hole through which the robot's expressive lights are visible. The rectangular hole is covered from the inside by a thin layer of frosted-texture plastic cut from a plastic shoe-box. The plastic was added to give the LEDs a more dispersed lighting effect as well as to obscure the view of the robot's inner circuitry. Behind the plastic was mounted the LED circuit board. The board is actually two small solder boards glued together (used because one large solder board did not fit as intended) and contains a total of 12 LEDs (4 Green, 4 Yellow, and 4 Red). The LEDs are oriented on the board such that the four LEDs of each color are approximately equidistant and spanning the length of the rectangular viewing hole. The board is secured by screws to the front wooden panel and offset from the panel using spacers. On either side of the body box are holes cut to fit the continuous rotation servos. The servos are secured to the panels with screws. The servos are intentionally placed toward the front of the robot so that with wheels attached to the servos the robot will rest on a table with points of contact being two wheels in the front and a small piece of wood on the back. The piece of wood is secured to the bottom panel near the rear of the body using screws. On the back body panel, a rectangular door was cut to allow for interior access to the body. The door was placed on a hinge and the hinge connected to the rest of the body with hot glue. A small plastic knob was glued to the door as a handle with which to open and close the access door. A hole was cut into the top piece of the body to allow wires to run from the body to the head. All of the body panels were glued together to form the final body box. The head was simply glued onto the top of the body box, completing the body design.</p>
 
 	<p>Inside the body box, in addition to the components already mentioned, are two ECE 4760 small boards Velcroed to the inside of the two side panels. The 9 Volt battery used to power the system is placed unsecured inside the body connected by wire to a small solder board used for power distribution. Power is delivered to the two PIC32s via DC barrel plugs from the power distribution board. The power distribution board is not secured down but is held in place by the force of the wires plugged into it.</p>
 
 	<h3>Software</h3>
-	<h3>Faces</h3>
-	<h3>Lights</h3>
-	<h3>Sounds</h3>
+	<p><b>Python Script: bot.py</b><br>To stream tweets from twitter, we implemented a script in python which analyzed the emotions fo tweets containing the mention "@BotCornell" and sent the handle, tweet content, and emotion over bluetooth serial to the robot. Our python script used a python library called tweepy to interface with the twitter API as well as a library called paralleldots which determines an emotion from text. The script contained two classes: StreamListener and TwitterRobotPushManager.</p>
 
+	<p><i>StreamListener:</i><br>The stream listener class is an inherited class from the tweepy library containing callback methods which execute when a tweet is streamed by our script. When a tweet is received this class appends the tweet to a global thread-safe queue containing any outstanding tweets.</p>
+
+	<p><i>TwitterRobotPushManager:</i><br>This class contains the main method which executes in a new thread when the script is run. On start-up, the start method connects to the twitter api, the paralleldots api, and the bluetooth serial port as well as starts a thread which filters all tweets with the mention "@BotCornell" in real time. The method then spawns another thread which waits for the global tweet queue to be updated whereupon the tweet is consumed from the queue, processed for its emotion and dividied into 5 chunks (to support the 64-character limit enforced by getMachineBuffer). Then the handle, each chunk and the emotion is sent successively over bluetooth to the robot. After sending over the relevant information, the consumer waits for at least 25 seconds before attempting to consume another tweets which allows the robot to complete its reaction to the tweet that was just sent.</p>
+
+	<p><b>primary_pic.c</b><br>primary_pic.c handled receiving messages over bluetooth from the python script, sending the emotion to the secondary pic and display the tweet's contents onto a tft_display. Both receiving over bluetooth and transmitting to the secondary pic was done with the UART and used the threaded methods GetMachineBuffer and PutMachineBuffer. For our system, we used a baud rate of 9600 bps and expected a carriage return as the termination character for each transmission.</p>
+
+	<p><i>protothread_serial</i><br>Protothread serial is responsible for both receiving data over bluetooth from bot.py, maintaining the receive state, and sending the emotion it receives to the secondary pic32.</p>
+
+	<p>On start-up the thread first clears PT_send_buffer which is used by PutSerialBuffer to send emotion to the secondary pic32. Doing this is highly critical to ensure that the buffer is not corrupted on start-up, which would prevent further communication between pics.
+	Inside the main while loop, the thread first spawns a GetMachineBuffer thread which yields until data is received. Once data is received, since receive_state is initially 0, the received data is loaded into a global twitter handle buffer and then receive_state is incremented and getMachineBuffer is called again. This processes repeats six more times to receive each tweet chunk and finally the emotion. Once emotion is received, receive_state is reset to 0, the emotion is sent over the UART Tx line, a react_state variable is set to 0 and the thread yields until the condition that react_state is 2. </p>
+
+	<p><i>protothread_execute</i><br>The execute thread handles timing of the robots execution and printing the tweet to one of the tft_displays. The thread switches on react_state such that when react_state is 0, indicating a reaction should commence, the thread starts timer23, calls print_tweet, and increments react_state. When react_state is 1, the execute thread does nothing. However, once react_state equals 2, indicating the timer has expired, the thread clears the tft_display showing the tweet sends a yield character over the UART Tx line to the secondary pic32 and yields until react_state is not 2. Note, the careful placement of the yields in both threads is critical to ensuring that nothing is missed by GetMachineBuffer in protothread serial.</p>
+
+	<p><i>timer23_ISR</i><br>Since the timer is used to mediate how long the robot's reaction should last, the ISR simply clears the interrupt flag and sets react_state to 2.</p>
+
+	<p><i>print_tweet()</i><br>Print tweet handles printing the twitter handle and tweet contents onto the screen. To do this, the method appends each tweet chunk into a full_tweet buffer and then iterates through the full_tweet buffer printing 24 character per line onto the tft_display. The method then resets the tweet_chunk and tweet_full buffers.</p>
+
+	<p><i>main</i><br>The main method simply sets up timer23, sets up protothreads, the tft_display and schdules both threads. It is important to note that we chose timer23 since it is 32-bit timer which was necessary as we required the timer to be able to count for 20 seconds. </p>
+
+	<p><b>secondary_pic.c</b><br>The secondary pic handled receiving emotions from the primary pic over UART and subsequently actuating the motors and LEDs with a PWM signal as well as drawing faces to one of the tft_displays.</p>
+
+	<p><i>timer2_ISR</i><br>The ISR is responsible for regulating the PWM signals that control both the LEDs and the servos on the robot. We set the ISR to run at 50 Hz which is the standard PWM frequency for motors. Inside the ISR, we set the pulses for output compare 1,2, 3, 4, and 5 depending on which emotion was received. Output compares 1,2, and 3 control the lights and can either flash or fade on and off, while output compares 4 and 5 control the motors. We also used counter variables to control the speed at which the lights fade or blink. </p>
+
+	<p><i>protothread_face</i><br>Protothread face handles playing the twitter notification sound and drawing faces on a tft_display. The thread switches on update_flag. If update_flag is 0,  a DMA transfer is started, one of seven faces is displayed depending on which emotion is received, and then the thread yields until update_flag is 0. If update_flag is 1, the thread draws the resting facing and yields until update_flag is 0. Similar to the yielding structure in primary_pic, this yielding structure is designed to ensure that GetMachineBuffer never misses a transmission. </p>
+
+	<p><i>protothread_serial</i><br>Protothread serial receives the emotion sent by primary_pic and sets a global update_flag variable to 1 unless the received character is a yield character in which case, it sets update_flag to 0.</p>
+
+	<p><i>main</i><br>The main method handles setup for DMA, output compares for PWM, timers, the tft_display, and protothreads.</p>
+
+
+
+	<h2>Results</h3>
+	<iframe width="560" height="315" src="https://www.youtube.com/embed/OoaDNdVuM5I" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+	<p>From a latency standpoint, our system performed very well. After a user sends a tweet, it takes the robot on-average 6.89 s to react. The main bottleneck was the twitter API which took 6.25 seconds on-average to retrieve a tweet. The actual reactions to the user's tweets once the tweet is received happens almost instantaneously from the user's perspective.  </p>
+	<p>Our system was also designed to handle load at a reasonable scale. We implemented the python script to buffer all incoming tweets and consume each tweet from the buffer sequentially. This enabled us to control the speed at which tweets were actually sent to the robot while ensuring that no incoming tweets are dropped. For example, if two users tweeted to the robot at the same time, both tweets would be buffered in a thread-safe manner by the python script and then each tweet would be sent sequentially to the robot such that the time between each transmission allowed the robot to completely react to each received tweet.</p>
+
+	<h3>User Experience</h3>
+	<p>One of the first senses to be appealed to by this interactive device is the sense of sound. When any tweet is received by the robot, it immediately emits a chirping-like sound to notify to the user that someone has tweeted at the robot and it is going to react. The specific sound is the sound made by the twitter app when a tweet is received. We chose this because it is a universally recognized sound that would be easily understood in its functionality. </p>
+	<p>Next the robot appeals to the user visually in three ways. First its face changes on the top display from its resting position, to a more indicative face depending on the emotion. The following faces have been created to be associated with each emotion:</p>
+
+	<img src='resting.jpg'/>
+	<img src='happy.jpg'/>
+	<img src='sad.jpg'/>
+	<img src='angry.jpg'/>
+	<img src='excited.jpg'/>
+	<img src='fear.jpg'/>
+	<img src='bored.jpg'/>
+	<img src='sarcastic.jpg'/>
+
+	<p>Simultaneously, the bottom display changes to show not only the tweet that the robot was reacting to, but who sent it. This is allows the user to read the tweet and further understand why the robot is reacting in this given way. Finally, the bar of lights on the robot lights up in different patterns, again according to the indicated emotion. The patterns themselves were determined using our best judgement and were supposed to represent interpretations of each emotion. For example, when the tweet is analyzed to be angry, the robot lights up with flashing red lights.</p>
+	<p>The last component to the user experience appeals to the users sense of motion as the robot will turn around in a complete circle when any tweet has been received. This is meant to draw attention to the robot as its movement is highly noticeable. Because the robot is meant to be a tabletop device, we made sure that the robot turned in a circle around itself so as not to run into anything else in its vicinity or fall off the table.</p>
+	<p>The combined reactions create an inexplicable user experience, appealing to multiple sensory components of users and truly bringing a new interactive and physical component to the once individualized, social media. </p>
+
+	<h2>Conclusion</h3>
+
+	<p>The design met our fullest expectations and more as the final result was fully functional and appealed to multiple senses, achieving the goals we initially set out to meet. If we had additional time, there are multiple ways that we could improve on the current functionality of the device. For starters, it might be valuable to try to find some research that could more appropriately connect emotions to colors. Using this, we could try to build on our color bar to include more scientifically supported color reactions as opposed to the patterns and colors we generated using our best judgement. Secondly, we could improve the sound component of the robot by investing in higher quality speakers or even building an amplifier to magnify the sound. Currently, the sound is just barely audible and therefore would not get the attention of people in a crowded or noisy room. Third, we could improve the graphics displayed on the faces to be more expressive and representative of the emotions we were trying to display. This was difficult to accomplish in the allotted time as it would have required us to create structs with complex graphic components. In a similar vein, we also could have animated the faces to make them even more indicative of the emotion being displayed. An example of this might be blinking while in resting position or a tear falling when sad. </p>
+	<p>In regards to intellectual property considerations, we do not have many concerns as we only referenced publicly available APIs and did not take code from any public domains. Additionally, to our knowledge, there aren't any patent or trademark issues as this robot is not something that has been developed and patented by anyone else. Because this device is new to the market, there is potential for it to be patented if we so pursue. More likely than getting a patent, we will be spending next semester writing up the project in hopes of getting it published in an Internet of Things magazine.</p>
+	<p>There are really no safety concerns related to this project as motion is very limited and occurs on the same axis that the robot is centered around. Even if the robot were to run over something, its light weight really does not lend it to jeopardize one's safety. Not only this, but all of the electrical connections are secured within the robot and do not pose potential for any electric hazards. </p>
+	<p>Regarding legal considerations, there are some valid points of concern given that we are working with user data. However, we have mediated these concerns by intentionally not storing any data displayed in the form of tweets. Furthermore, the robot can only interact with publicly available tweets thereby mediating any concerns with accessing tweets from private or protected accounts.</p>
+	<p>Lastly, there are some serious ethical considerations that had to be made with respect to the use of this device. Because the robot displays any tweet directed at the account twitter account, there is potential for this device to spread some seriously detrimental hate speech. If this were to occur, it would be in direct violation of the IEEE Code of Ethics Rule 8:  “to treat fairly all persons and to not engage in acts of discrimination based on race, religion, gender, disability, age, national origin, sexual orientation, gender identity, or gender expression;” Given more time, we could potentially mitigate this violation of ethics by protecting access to the robot such that only followers of the user can tweet at the account and potentially filtering tweets using natural language processing before they are sent over to the robot to be displayed.</p>
+
+	<h2>Appendix A</h2>
+	<p>The group approves this report for inclusion on the course website.</p>
+	<p>The group approves the video for inclusion on the course youtube channel.</p>
+
+	<h2>Appendix B</h2>
+	<h4>bot.py</h4>
+	<pre><code>
+# Import modules
+from tweepy.streaming import StreamListener
+from tweepy import OAuthHandler
+from tweepy import Stream
+from threading import Lock
+from threading import Thread
+import time
+import serial
+import paralleldots
+
+EXECUTION_TIME = 25 #seconds
+PORT = 'COM12'
+BAUD_RATE = 9600
+CHUNK_SIZE = 63
+TERM_CHAR = "\r"
+BOT_HANDLE = "@BotCornell"
+EMPTY_CHUNK = "--"
+
+## Twitter API Keys
+consumer_key = 'your consumer key'
+consumer_secret = 'your consumer secret'
+access_token = 'your access token'
+access_token_secret = 'your access token secret'
+
+## Parallel
+paralleldots_key = 'your paralleldots key'
+
+
+class StreamListener(StreamListener):
+    """ A listener handles tweets that are received from the stream.
+    """
+
+    def __init__(self, batchedtweets, lock):
+    	super().__init__()
+    	self.batchedtweets = batchedtweets
+    	self.lock = lock
+
+    def on_status(self, status):
+    	try:
+    		tweet = status.extended_tweet["full_text"]
+    	except AttributeError:
+    		tweet = status.text
+
+    	with self.lock:
+    		self.batchedtweets.append((status.user.screen_name, tweet))
+    	return True
+
+    def on_error(self, status_code):
+        if status_code == 420:
+            return False
+
+
+class TwitterRobotPushManager:
+	def __init__(self):
+		self.batchedtweets = []
+		self.lock = Lock()
+		self.emotion_dict = {"Happy" : 'h', "Angry" : 'a', "Excited" : 'e', "Sad" : 's', "Sarcasm" : 'u', "Fear" : 'f', "Bored" : 'b'}
+		self.btport = serial.Serial(PORT, BAUD_RATE)
+
+	def getemotion(self, tweet):
+		emotion= (paralleldots.emotion(tweet)['emotion'])['emotion']
+		return self.emotion_dict[emotion]
+
+	def sendtweetdata(self, handle, tweet, emotion):
+		tweet = tweet.replace(" ", "-")
+		print("@"+handle+" says:")
+		print(tweet)
+		print(emotion)
+		tweet_chunks = [tweet[i:i+CHUNK_SIZE] for i in range(0, len(tweet), CHUNK_SIZE)]
+		print ("TWEET CHUNKS")
+		for i in range (len (tweet_chunks)):
+			print (tweet_chunks[i])
+		self.btport.write((handle+TERM_CHAR).encode())
+		for i in range(0, len(tweet_chunks)):
+			self.btport.write((tweet_chunks[i]+TERM_CHAR).encode())
+		for i in range(len(tweet_chunks), 5):
+			self.btport.write((EMPTY_CHUNK+TERM_CHAR).encode())
+		self.btport.write((emotion+TERM_CHAR).encode())
+		print ("sending tweet data")
+
+	def processtweets(self):
+		updateflag = False
+		while (1):
+			with self.lock:
+				if (len(self.batchedtweets) > 0):
+					handle, tweet = self.batchedtweets.pop(0)
+					updateflag = True
+			if (updateflag):
+				updateflag = False
+				emotion = self.getemotion(tweet)
+				self.sendtweetdata(handle, tweet, emotion)
+				time.sleep(EXECUTION_TIME)
+
+	def tweetfilter(self, stream):
+		stream.filter(track=[BOT_HANDLE])
+
+	def start(self):
+		paralleldots.set_api_key(paralleldots_key)
+		listener = StreamListener(self.batchedtweets, self.lock)
+		auth = OAuthHandler(consumer_key, consumer_secret)
+		auth.set_access_token(access_token, access_token_secret)
+		stream = Stream(auth, listener)
+		Thread(target = self.tweetfilter, args = (stream,)).start()
+		thread = Thread(target = self.processtweets)
+		thread.start()
+		print("Started...")
+
+
+if __name__ == '__main__':
+    botpushmanager = TwitterRobotPushManager()
+    botpushmanager.start()
+
+	</code></pre>	
+
+	<h4>primary.c</h4>
+	<pre><code>
+		
+/*
+ * File:        TFT, keypad, DAC, LED, PORT EXPANDER test
+ *              With serial interface to PuTTY console
+ * Authors:     Nikhil Dhawan, Ian Kranz, Sofya Calvin 
+ * For use with Sean Carroll's Big Board
+ * http://people.ece.cornell.edu/land/courses/ece4760/PIC32/target_board.html
+ * Target PIC:  PIC32MX250F128B
+ */
+
+////////////////////////////////////
+// clock AND protoThreads configure!
+// You MUST check this file!
+#include "config_1_2_3.h"
+// threading library
+#include "pt_cornell_1_2_3.h"
+
+////////////////////////////////////
+// graphics libraries
+// SPI channel 1 connections to TFT
+#include "tft_master.h"
+#include "tft_gfx.h"
+// need for rand function
+#include <stdlib.h>
+// need for sin function
+#include <math.h>
+////////////////////////////////////
+
+////////////////////////////////////
+// string buffer
+char buffer[60];
+
+////////////////////////////////////
+// DDS constant
+#define two32 4294967296.0 // 2^32 
+#define Fs 100000
+
+static struct pt pt_serial, pt_exec ;
+// The following threads are necessary for UART control
+static struct pt pt_input, pt_output, pt_DMA_output ;
+
+// system 1 second interval tick
+int sys_time_seconds ;
+volatile int react_state = 2;
+int receive_state = 0;
+char handle[15]; //stores incoming tweet twitter handle
+char tweet_blocks[5][64]; //5x64 array of tweet chunks
+char tweet_full[320]; //stores entire tweet
+char emotion[1]; //tweet emotion
+
+
+//== Timer 23 interrupt handler ===========================================
+void __ISR(_TIMER_23_VECTOR, ipl2) Timer23Handler(void)
+{
+    mT23ClearIntFlag();
+    react_state = 2;
+}
+
+void print_tweet() {
+    static char handle_line[25];
+    static char line[24];
+    tft_setCursor(10, 10);
+    sprintf(handle_line,"@%s says:", handle);
+    tft_writeString(handle_line);
+    int i;
+    int j;
+    
+    //load tweet full
+    for (i = 0; i <5; i++) {
+        for (j = 0; j < 64 && (tweet_blocks[i][0] != '-' || tweet_blocks[i][1] != '-'); j++) {
+            tweet_full[64*i+j] = tweet_blocks[i][j];
+        }
+    }
+    //print tweet
+    for (i = 0; i < 180; i++) {
+        line[i%24] = tweet_full[i];
+        if (30+i/24*15 > 180) {
+            break;
+        }
+        if (i%24 == 23 || i == 319) {
+            tft_setCursor(10, 30+i/24*15);
+            tft_writeString(line);
+            memset(line, 0, 24);
+        }
+    }
+    
+    //clear tweet chunks and tweet full
+    for (i = 0; i < 5; i++) {
+        memset(tweet_blocks[i], 0, 64);
+    }
+    memset(tweet_full, 0, 320);
+       
+}
+// Predefined colors definitions (from tft_master.h)
+//#define	ILI9340_BLACK   0x0000
+//#define	ILI9340_BLUE    0x001F
+//#define	ILI9340_RED     0xF800
+//#define	ILI9340_GREEN   0x07E0
+//#define ILI9340_CYAN    0x07FF
+//#define ILI9340_MAGENTA 0xF81F
+//#define ILI9340_YELLOW  0xFFE0
+//#define ILI9340_WHITE   0xFFFF
+
+// === thread structures ============================================
+// thread control structs
+// note that UART input and output are threads
+
+static PT_THREAD(protothread_execute(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    while (1) {
+        
+        PT_terminate_char = '\r' ;
+        PT_terminate_count = 0 ;
+        PT_terminate_time = 0 ;
+        switch (react_state) {
+            case 0: //start react
+                WriteTimer23(0x00000000); //start timer
+                print_tweet();
+                react_state = 1; //transition to IP
+                break;
+            case 1: //react IP
+                break;
+            case 2: //stop react
+                tft_fillRoundRect(0,0, 320, 240, 1, ILI9340_BLACK);// x,y,w,h,radius,color
+               // tft_setCursor(10, 30+2*15);
+               // tft_writeString("Have you ever heard the");
+                sprintf(PT_send_buffer,"%s#", "y");
+                PT_SPAWN(pt, &pt_output, PutSerialBuffer(&pt_output));
+                PT_YIELD_UNTIL(pt, react_state != 2);
+                break;
+        }
+        
+    }
+    PT_END(pt);
+}
+
+//=== Serial terminal thread =================================================
+
+static PT_THREAD (protothread_serial(struct pt *pt))
+{
+    PT_BEGIN(pt);
+      // string buffer
+      static char buffer[128];
+      tft_setTextColor(ILI9340_WHITE);  tft_setTextSize(2);
+      clr_right;
+      memset(PT_send_buffer, 0, max_chars);
+      while(1) {
+            int i = 0;
+          
+            PT_terminate_char = '\r' ;
+            PT_terminate_count = 0 ;
+            PT_terminate_time = 0 ;
+          
+            //Bluetooth code
+            PT_SPAWN(pt, &pt_input, PT_GetMachineBuffer(&pt_input) );
+            
+            if(PT_timeout==0) {
+                switch (receive_state) {
+                    
+                    case 0:
+                        sscanf(PT_term_buffer, "%s", handle);
+                        receive_state=1;
+                        break;
+                    case 1:
+                        sscanf(PT_term_buffer, "%s", tweet_blocks[0]);
+                        receive_state=2;
+                        for (i = 0; i < 64; i++) {
+                            if (tweet_blocks[0][i] == '-') {
+                                tweet_blocks[0][i] = ' ';
+                            }
+                        }
+                        break;
+                    case 2:
+                        sscanf(PT_term_buffer, "%s", tweet_blocks[1]);
+                        receive_state=3;
+                        for (i = 0; i < 64; i++) {
+                            if (tweet_blocks[1][i] == '-') {
+                                tweet_blocks[1][i] = ' ';
+                            }
+                        }
+                        break;
+                    case 3:
+                        sscanf(PT_term_buffer, "%s", tweet_blocks[2]);
+                        receive_state=4;
+                        for (i = 0; i < 64; i++) {
+                            if (tweet_blocks[2][i] == '-') {
+                                tweet_blocks[2][i] = ' ';
+                            }
+                        }
+                        break;
+                    case 4:
+                        sscanf(PT_term_buffer, "%s", tweet_blocks[3]);
+                        receive_state=5;
+                        for (i = 0; i < 64; i++) {
+                            if (tweet_blocks[3][i] == '-') {
+                                tweet_blocks[3][i] = ' ';
+                            }
+                        }
+                        break;
+                    case 5:
+                        sscanf(PT_term_buffer, "%s", tweet_blocks[4]);
+                        for (i = 0; i < 64; i++) {
+                            if (tweet_blocks[4][i] == '-') {
+                                tweet_blocks[4][i] = ' ';
+                            }
+                        }
+                        receive_state=6;
+                        break;
+                    case 6:
+                        sscanf(PT_term_buffer, "%s", emotion);
+                        sprintf(PT_send_buffer,"%s#", emotion);
+                        PT_SPAWN(pt, &pt_output, PutSerialBuffer(&pt_output));
+                        react_state = 0;
+                        receive_state=0;
+                        PT_YIELD_UNTIL(pt, react_state == 2);
+                        break;
+                }
+             }
+            // never exit while
+      } // END WHILE(1)
+  PT_END(pt);
+} // thread 3
+
+// === Main  ======================================================
+void main(void) {
+ //SYSTEMConfigPerformance(PBCLK);
+  
+  ANSELA = 0; ANSELB = 0; 
+
+  // set up DAC on big board
+  // timer interrupt //////////////////////////
+  // Set up timer2 on,  interrupts, internal clock, prescalar 1, toggle rate
+  // at 30 MHz PB clock 60 counts is two microsec
+  // 400 is 100 ksamples/sec
+  // 2000 is 20 ksamp/sec
+  OpenTimer23(T23_ON | T23_SOURCE_INT | T23_PS_1_256, 0x002FAF08);
+  // set up the timer interrupt with a priority of 2
+  ConfigIntTimer23(T23_INT_ON | T23_INT_PRIOR_2);
+  mT23ClearIntFlag(); // and clear the interrupt flag
+  // === config threads ==========
+  // turns OFF UART support and debugger pin, unless defines are set
+  PT_setup();
+
+  // === setup system wide interrupts  ========
+  INTEnableSystemMultiVectoredInt();
+
+  // init the threads
+  PT_INIT(&pt_serial);
+  PT_INIT(&pt_exec);
+
+  // init the display
+  // NOTE that this init assumes SPI channel 1 connections
+  tft_init_hw();
+  tft_begin();
+  tft_fillScreen(ILI9340_BLACK);
+  //240x320 vertical display
+  tft_setRotation(1); // Use tft_setRotation(1) for 320x240
+
+  // seed random color
+  srand(1);
+  
+  // round-robin scheduler for threads
+  while (1){
+      PT_SCHEDULE(protothread_serial(&pt_serial));
+      PT_SCHEDULE(protothread_execute(&pt_exec));
+      }
+  } // main
+
+// === end  ======================================================
+	</code></pre>
+
+	<h4>secondary_pic.c</h4>
+	<pre><code>
+/*
+ * File:        UART, PWM, DMA SPI, TFT
+ * Authors:     Nikhil Dhawan, Ian Kranz, Sofya Calvin
+ * For use with ECE 4760 Small Board
+ * http://people.ece.cornell.edu/land/courses/ece4760/PIC32/target_board.html
+ * Target PIC:  PIC32MX250F128B
+ */
+
+////////////////////////////////////
+// clock AND protoThreads configure!
+// You MUST check this file!
+#include "twsound.h"
+#include "config_1_2_3.h"
+// threading library
+#include "pt_cornell_1_2_3.h"
+
+////////////////////////////////////
+// graphics libraries
+// SPI channel 1 connections to TFT
+#include "tft_master.h"
+#include "tft_gfx.h"
+// need for rand function
+#include <stdlib.h>
+// need for sin function
+#include <math.h>
+////////////////////////////////////
+
+/* Program to receive emotion as char from primary PIC32
+ * via UART and react with PWM, DMA SPI DDS, and TFT
+ */
+
+// string buffer
+char buffer[60];
+
+////////////////////////////////////
+// DDS constants
+#define F_OUT 44000
+#define SYS_FREQ 40000000
+#define table_size 9677
+
+//exponential fade samples
+int exp_on[16] = {2, 4, 8, 15, 30, 58, 114, 224, 439, 863, 1696, 3335, 6556, 12888, 25337, 49813};
+
+//Periodic blink samples
+int blink_on[16] = {3, 3, 3, 3, 3, 3, 3, 3, 49813, 49813, 49813, 49813, 49813, 49813, 49813, 49813};
+
+int light_phase = 0; 
+int light_index = 0; 
+
+/*
+ * Face drawing functions by emotion
+*/
+void draw_joy_face(){
+    //Left eye
+    tft_drawLine(70,100,100,50,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(100,50,130,100,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(190,100,220,50,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(220,50,250,100,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(120,140,160,180,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,180,200,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_joy_face(){
+    //Left eye
+    tft_drawLine(70,100,100,50,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(100,50,130,100,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(190,100,220,50,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(220,50,250,100,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(120,140,160,180,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,180,200,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_anger_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,180,160,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,140,200,180,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(130,25,150,45,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(170,45,190,25,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_anger_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,180,160,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,140,200,180,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(130,25,150,45,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(170,45,190,25,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_sad_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,180,160,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,140,200,180,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(70,45,90,25,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(230,25,250,45,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_sad_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,180,160,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,140,200,180,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(70,45,90,25,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(230,25,250,45,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_fear_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(80,170,100,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(100,150,120,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(120,170,140,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(140,150,160,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,170,180,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(180,150,200,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(200,170,220,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(220,150,240,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(70,45,90,25,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(230,25,250,45,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_fear_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(80,170,100,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(100,150,120,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(120,170,140,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(140,150,160,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,170,180,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(180,150,200,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(200,170,220,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(220,150,240,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(70,45,90,25,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(230,25,250,45,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_sarcastic_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Mouth
+    tft_drawCircle(160,160,10,ILI9340_YELLOW);// x1,y1,r,color
+    //Eyebrows
+    tft_drawLine(90,30,110,10,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(110,10,130,30,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(190,30,210,10,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(210,10,230,30,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_sarcastic_face(){
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Mouth
+    tft_drawCircle(160,160,10,ILI9340_BLACK);// x1,y1,r,color
+    //Eyebrows
+    tft_drawLine(90,30,110,10,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(110,10,130,30,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(190,30,210,10,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(210,10,230,30,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_bored_face(){
+    //Left eye
+    tft_drawLine(70,100,100,50,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(100,50,130,100,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(190,100,220,50,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(220,50,250,100,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(150,180,170,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(170,170,150,160,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(150,160,170,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(170,150,150,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_bored_face(){
+    //Left eye
+    tft_drawLine(70,100,100,50,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(100,50,130,100,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(190,100,220,50,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(220,50,250,100,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(150,180,170,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(170,170,150,160,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(150,160,170,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(170,150,150,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_excited_face(){
+    //Left eye
+    tft_drawLine(90,105,140,75,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(140,75,90,45,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(230,105,180,75,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(180,75,230,45,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(120,140,160,180,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,180,200,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(120,140,200,140,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_excited_face(){
+    //Left eye
+    tft_drawLine(90,105,140,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(140,75,90,45,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Right eye
+    tft_drawLine(230,105,180,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(180,75,230,45,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Mouth
+    tft_drawLine(120,140,160,180,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,180,200,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(120,140,200,140,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+void draw_rest_face(){
+    tft_drawLine(90,75,130,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(190,75,230,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Left eye
+    tft_drawRect(90,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_YELLOW);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,150,160,170,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(160,170,200,150,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(90,30,130,30,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(190,30,230,30,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+void blink_face(){
+    //clear eyes
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //draw blink
+    tft_drawLine(90,75,130,75,ILI9340_YELLOW);// x1,y1,x2,y2,color
+    tft_drawLine(190,75,230,75,ILI9340_YELLOW);// x1,y1,x2,y2,color
+}
+
+void clear_rest_face(){
+    tft_drawRect(90,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Right eye
+    tft_drawRect(190,50,40,50,ILI9340_BLACK);// x1,y1,w,h,color
+    //Mouth
+    tft_drawLine(120,150,160,170,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(160,170,200,150,ILI9340_BLACK);// x1,y1,x2,y2,color
+    //Eyebrows
+    tft_drawLine(90,30,130,30,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(190,30,230,30,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(90,75,130,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+    tft_drawLine(190,75,230,75,ILI9340_BLACK);// x1,y1,x2,y2,color
+}
+
+// === thread structures ============================================
+// thread control structs
+// note that UART input and output are threads
+static struct pt pt_timer, pt_color, pt_anim, pt_key, pt_serial, pt_draw, pt_face ;
+// The following threads are necessary for UART control
+static struct pt pt_input, pt_output, pt_DMA_output ;
+
+int updateflag = 0;
+int inc = 1;
+int pwm_phase = 0;
+int fade_count = 3;
+int turn_count = 0;
+char cmd[30];
+
+void __ISR(_TIMER_2_VECTOR, ipl2) Timer2Handler(void)
+{   
+	//update lights on time scale determined by fade count
+    if (light_phase == fade_count) {
+
+    		//move in current direction of light tables
+            if (inc) {
+                light_index++;
+            }
+            else {
+                light_index--;
+            }
+
+            //change direction in light tables
+            if (light_index > 14) {
+                inc = 0;
+            }
+            else if (light_index < 1) {
+                inc = 1;
+            }
+            
+            //flash lights as reaction to tweet emotion
+            if (cmd[0] == 'h') { //green lights on
+                SetPulseOC1(3, 1);
+                SetPulseOC2(3, 1);
+                SetPulseOC3(3, 1);
+            }
+            else if (cmd[0] == 'a') { //blinking red
+                SetPulseOC1(blink_on[light_index], 1);
+                SetPulseOC2(3, 1);
+                SetPulseOC3(50000, 1);
+                fade_count = 1;
+            }
+            else if (cmd[0] == 's') { //fading yellow
+                SetPulseOC1(3, 1); 
+                SetPulseOC2(exp_on[light_index], 1);
+                SetPulseOC3(50000, 1);
+                fade_count = 2;
+            }
+            else if (cmd[0] == 'f') { //red on, yellow blink
+                SetPulseOC1(50000, 1);
+                SetPulseOC2(blink_on[light_index], 1);
+                SetPulseOC3(50000, 1);
+                fade_count = 1;
+            }
+            else if (cmd[0] == 'e') { //fade all lights
+                SetPulseOC1(exp_on[light_index], 1);
+                SetPulseOC2(exp_on[light_index], 1);
+                SetPulseOC3(50000-blink_on[light_index], 1);
+                fade_count = 1;
+            }
+            else if (cmd[0] == 'b') { //fade red
+                SetPulseOC1(exp_on[light_index], 1);
+                SetPulseOC2(3, 1);
+                SetPulseOC3(50000, 1);
+                fade_count = 3;
+            }
+            else if (cmd[0] == 'u') { //all on
+                SetPulseOC1(50000, 1);
+                SetPulseOC2(50000, 1);
+                SetPulseOC3(3, 1);
+            }
+            else { //fade green, red dim
+                SetPulseOC1(3, 1);
+                SetPulseOC2(3, 1);
+                SetPulseOC3(50000-exp_on[light_index], 1);
+                fade_count = 5;
+            }   
+            light_phase = 0;
+    }
+    
+    //modify PWM signals while in react mode
+    if(updateflag) {
+                turn_count++;
+                //start turning at 2 seconds
+                if (turn_count == 100) {
+                    OpenOC4(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 20000); 
+                    OpenOC5(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 20000);
+                }
+                
+                //stop turning after ~5.5 seconds for full 360
+                else if (turn_count == 370) {
+                    CloseOC4();
+                    CloseOC5();
+                }
+     }
+    else {
+                turn_count = 0;
+    }
+    
+    light_phase++;
+    mT2ClearIntFlag();
+}
+
+//play sound and update TFT display
+static PT_THREAD (protothread_face(struct pt *pt))
+{
+    PT_BEGIN(pt);
+    switch(updateflag){
+        case 1:
+            
+            //play notification sound
+            DmaChnStartTxfer(0, DMA_WAIT_NOT, 1);
+            
+            //clear previous face
+            tft_fillRoundRect(0,0, 320, 240, 1, ILI9340_BLACK);// x,y,w,h,radius,color
+            
+            //draw reaction face
+            if (cmd[0] == 'h') {
+                draw_joy_face();
+            }
+            else if (cmd[0] == 'a') {
+                draw_anger_face();
+            }
+            else if (cmd[0] == 's') {
+                draw_sad_face();
+            }
+            else if (cmd[0] == 'f') {
+                draw_fear_face();
+            }
+            else if (cmd[0] == 'e') {
+            	draw_excited_face();
+            }
+            else if (cmd[0] == 'b') {
+                draw_bored_face();
+            }
+            else if (cmd[0] == 'u') {
+                draw_sarcastic_face();
+            }
+            PT_YIELD_UNTIL(pt, updateflag == 0);
+            break;
+
+        default:
+            tft_fillRoundRect(0,0, 320, 240, 1, ILI9340_BLACK);// x,y,w,h,radius,color
+            draw_rest_face();
+            PT_YIELD_UNTIL(pt, updateflag == 1);
+    }
+
+  PT_END(pt);
+}
+
+//recieve emotion via UART
+static PT_THREAD (protothread_serial(struct pt *pt))
+{
+    PT_BEGIN(pt);
+      
+      while(1) {
+
+      		//get serial data
+            PT_terminate_char = '#' ;
+            PT_terminate_count = 0 ;
+            PT_terminate_time = 0 ;
+            PT_SPAWN(pt, &pt_input, PT_GetMachineBuffer(&pt_input));
+            
+            //process string
+            if(PT_timeout==0) {
+                sscanf(PT_term_buffer, "%s", cmd);
+                if (cmd[0] == 'y') //yield character
+                    updateflag = 0;
+                else //any other character
+                    updateflag = 1;
+            }
+            // no actual string
+             else {
+                 cmd[0] = 0 ;
+             }
+      } // END WHILE(1)
+  PT_END(pt);
+} // thread 3
+
+// === Main  ======================================================
+void main(void) {
+ //SYSTEMConfigPerformance(PBCLK);
+  
+  ANSELA = 0; ANSELB = 0; 
+
+    //Open timer for PWM for 50Hz
+    OpenTimer2(T2_ON | T2_SOURCE_INT | T2_PS_1_16, 0xC350);
+    ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_2);
+    mT2ClearIntFlag();
+
+    //PWM for lights
+    OpenOC1(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 3900); 
+    PPSOutput(1, RPB7, OC1); //Red
+    
+    OpenOC2(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 3900); 
+    PPSOutput(2, RPB8, OC2); //Yellow
+    
+    OpenOC3(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 3900); 
+    PPSOutput(4, RPB9, OC3); //Green
+    
+    //PWM for Servos
+    OpenOC4(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 4000); 
+    PPSOutput(3, RPA2, OC4);
+    
+    OpenOC5(OC_ON | OC_TIMER2_SRC | OC_CONTINUE_PULSE , 1, 4000); 
+    PPSOutput(3, RPA4, OC5);
+    
+    CloseOC4();
+    CloseOC5();
+    
+    ///////////////////////////////////////////////////////////////
+    
+    //set timer value to sent samples at 44100Hz
+    int timer_limit_1 = SYS_FREQ/(F_OUT);
+    OpenTimer3(T3_ON | T3_SOURCE_INT | T3_PS_1_1 , timer_limit_1);
+
+    //set up SPI in framed mode
+    SpiChnOpen(SPI_CHANNEL2, SPI_OPEN_ON | SPI_OPEN_MODE16 | SPI_OPEN_MSTEN 
+            | SPI_OPEN_CKE_REV | SPICON_FRMEN | SPICON_FRMPOL, 2);
+    
+    PPSOutput(2, RPB5, SDO2);
+    PPSOutput(4, RPA3, SS2);
+    
+    //set up DMA channel to send twitter notification sound over SPI
+    DmaChnOpen(0 ,0, DMA_OPEN_DEFAULT);
+    DmaChnSetTxfer(0, AllDigits, (void*)&SPI2BUF, table_size*2, 2, 2);
+    DmaChnSetEventControl(0, DMA_EV_START_IRQ(_TIMER_3_IRQ));
+    DmaChnEnable(0);
+
+  // === config threads ==========
+  // turns OFF UART support and debugger pin, unless defines are set
+  PT_setup();
+
+  // === setup system wide interrupts  ========
+  INTEnableSystemMultiVectoredInt();
+
+  // init the threads
+  PT_INIT(&pt_serial);
+  PT_INIT(&pt_draw);
+  PT_INIT(&pt_face);
+
+  // init the display
+  // NOTE that this init assumes SPI channel 1 connections
+  tft_init_hw();
+  tft_begin();
+  tft_fillScreen(ILI9340_BLACK);
+  //240x320 vertical display
+  tft_setRotation(1); // Use tft_setRotation(1) for 320x240
+  
+  // round-robin scheduler for threads
+  while (1){
+      PT_SCHEDULE(protothread_serial(&pt_serial));
+      PT_SCHEDULE(protothread_face(&pt_face));
+      }
+  } // main
+
+// === end  ======================================================
+
+	</code></pre>	
+
+	<h2>Appendix C</h2>
+	<h4>Circuit Schematic</h4>
+	<img src='sch.png'/>
+
+	<h2>Appendix D</h2>
+	<h4>Bill of Materials</h4>
 	<img src='bom.png'/>
 
+	<h2>Appendix E</h2>
+	<h4>Member Tasks</h4>
+	<p><b>Nikhil</b> - Created the entire python script to interface with Twitter and run the emotion analysis, then send all of the data in appropriate packets via bluetooth; Contributed to a large portion of the primary pic code, handling the state machine, the UART transmission, and the tweet display; Contributed to secondary pic code, handling UART reception and state machine. Built second small board</p>
 
+	<p><b>Ian</b> - Contributed to the primary pic code, working specifically with Nikhil create the state machine and the tweet display, wrote the bluetooth code to receive data from the module; Contributed to the secondary pic code, working on the PWM signals sent to the servos and lights as well as the DMA code; Built the LED and voltage regulator circuitry</p>
+
+	<p><b>Sofya</b> - Designed each of the eight TFT faces according to the emotions associated; Designed the mechanical layout of the robot, working to design and laser cut the outer components in addition to working on the hardware architecture within the robot; Contributed to the secondary pic code, working to hand the received data via UART and create, the digital faces, and assist Ian in the PWM/DMA code.</p>
+
+	<h2>Appendix F</h2>
 	<h4>HC-05 Bluetooth Module</h4>
 	<img src='hc05.jpg'/>
 	<p>The HC-05 module comes pre-configured to send and receive serial data over Bluetooth and UART. Our design only requires the module to receive character data over Bluetooth from a Windows computer and send the characters over a wired UART connection to the PIC32. The module ships with these capabilities, so no configuration was required. We simply attached power, ground, and TX to the PIC and found and paired with the Bluetooth device on the computer. The baud rate is set by standard to 9600, so this baud rate was used to receive on the PIC32. It should be noted that this module is rather old and was able to connect to our somewhat old Windows computer, but it was unable to connect to any recent Apple products.</p>
+
+	<h2>References</h2>
+	<ul>
+		<li>
+			<a href='https://people.ece.cornell.edu/land/courses/ece4760/PIC32/Microchip_stuff/32-bit-Peripheral-Library-Guide.pdf?fbclid=IwAR1jJAWwQdIu6d7U2pX5_FQbn-sij8muEewdCWj-TjMXOwFDf8smNcnJcR8'>Microchip Peripheral Libraries</a>
+		</li>
+		<li>
+			<a href='https://www.paralleldots.com/emotion-detection?fbclid=IwAR2sHvru6msVmOL1Go8mmQz3LH3-o3PMRtqf1Ye2xOoEDTysUEdpbL83Rd8'>paralleldots</a>
+		</li>
+		<li>
+			<a href='http://docs.tweepy.org/en/v3.5.0/api.html?fbclid=IwAR0GJO-vkJSWYOMHwQdgvxJxN42OTlF2AiPbYOUyn01mQ0jVey60H-ciGqk'>tweepy</a>
+		</li>
+		<li>
+			<a href='https://developer.twitter.com/en/docs/basics/apps.html'>Twitter API</a>
+		</li>
+		<li>
+			<a href='https://www.amazon.com/dp/B01G9KSAF6/ref=sspa_dk_detail_5?psc=1&pd_rd_i=B01G9KSAF6&pd_rd_w=kEW0M&pf_rd_p=f0dedbe2-13c8-4136-a746-4398ed93cf0f&pd_rd_wg=lnzES&pf_rd_r=EPGEV408C0TDKQE22WDT&pd_rd_r=b6d79d54-fc35-11e8-87bf-151422111fdf'>HC-05 Bluetooth Purchase Link</a>
+		</li>
+		<li>
+			<a href='https://www.gme.cz/data/attachments/dsh.772-148.1.pdf'>HC-05 Bluetooth Datasheet</a>
+		</li>
+		<li>
+			<a href='https://www.ieee.org/about/corporate/governance/p7-8.html'>IEEE Code of Ethics</a>
+		</li>
+	</ul>
 </body>
 </html>
